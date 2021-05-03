@@ -2,7 +2,7 @@ from copy import copy, deepcopy
 from typing import Text, List, Dict
 
 
-def findfirst(nonterminal: Text, nextrule: List, lf=None):
+def findfirst(nonterminal: Text, nextrule: List, lf=None, idx=None):
     if lf is None:
         lf = set()
     local_nt = nonterminal
@@ -12,20 +12,47 @@ def findfirst(nonterminal: Text, nextrule: List, lf=None):
         if len(local_rule) == 2:
             if local_rule[0].rstrip("usd ").rstrip(" ") == local_nt.rstrip(" "):
                 if local_rule[1].lstrip(" ").rstrip(" ").split(" ")[0] not in NT:
-                    for k in N.keys():
-                        if N[k][0] == "LEFT":
-                            if N[k][1] == local_rule[0].rstrip("usd ").rstrip(" "):
-                                if len(lf[k]) == 0:
-                                    lf[k].add(local_rule[1].lstrip(" ").rstrip(" ").split(" ")[0].rstrip(" "))
-                                    return lf, k
-                                elif len(lf[k]) != 0:
-                                    return lf, k
+                    for j in N.keys():
+                        for m in N[j].keys():
+                            if N[j][m][0] == "LEFT":
+                                if N[j][m][1] == local_nt.rstrip(" "):
+                                    for z in lf[m]:
+                                        lf[idx].add(z)
                 elif local_rule[1].lstrip(" ").rstrip(" ").split(" ")[0] in NT:
-                    if i + 1 <= len(nextrule):
-                        resp, id = findfirst(nonterminal=local_rule[1].lstrip(" ").rstrip(" ").split(" ")[0],
-                                         nextrule=nextrule[i + 1::], lf=lf)
-                        return resp, id
+                    for j in N.keys():
+                        for m in N[j].keys():
+                            if j == i + 1:
+                                if N[j][m][0] == "LEFT":
+                                    if N[j][m][1] == local_rule[0].rstrip("usd ").rstrip(" "):
+                                        if len(lf[m]) == 0:
+                                            return lf
+                                        elif len(lf[m]) > 0:
+                                            for z in lf[m]:
+                                                lf[idx].add(z)
+    return lf
 
+
+def findfirst2(f):
+    first = f
+    for i in range(0, len(P)):
+        rule = P[i].lstrip(" ").rstrip(" ").split("->")
+        if len(rule) == 2:
+            symbol = rule[1].lstrip(" ").rstrip(" ").split(" ")[0]
+            if symbol in NT:
+                if i + 1 < len(P):
+                    for k in N[i + 1].keys():
+                        if N[i + 1][k][0] == "LEFT":
+                            if N[i + 1][k][1] == rule[0].rstrip("usd ").rstrip(" "):
+                                resp = findfirst(nonterminal=symbol, nextrule=P, lf=deepcopy(first), idx=k)
+                                first = resp
+            elif symbol not in NT:
+                for j in N.keys():
+                    for items in N[j]:
+                        if j == i + 1:
+                            if N[j][items][0] == "LEFT":
+                                if N[j][items][1] == rule[0].rstrip("usd ").rstrip(" "):
+                                    first[items].add(symbol.rstrip(" "))
+    return first
 
 
 def findfollow(follow: Dict) -> Dict:
@@ -43,13 +70,13 @@ def findfollow(follow: Dict) -> Dict:
                         beta = _tmp[i + 1].rstrip(" ")
 
                         if beta in NT:
-                            Sb = copy(first[beta])
+                            Sb = copy(first_by_nonterminal[beta])
                             if "e" in Sb:
                                 Sb.remove("e")
 
-                            if beta == "e" or "e" in first[beta]:
+                            if beta == "e" or "e" in first_by_nonterminal[beta]:
                                 Fb = loc_follow[rule[0].rstrip("usd ")]
-                            elif beta != "e" and "e" not in first[beta]:
+                            elif beta != "e" and "e" not in first_by_nonterminal[beta]:
                                 Fb = []
 
                             pre_result = loc_follow[A].union(Sb).union(Fb)
@@ -103,107 +130,112 @@ if __name__ == '__main__':
         rule = P[i].lstrip(" ").rstrip(" ").split("->")
         if len(rule) == 2:
             if "usd" not in rule[0].rstrip(" "):
-                N[i+1] = {f"{number}":  ["LEFT", rule[0].rstrip(" ")]}
+                N[i + 1] = {f"{number}": ["LEFT", rule[0].rstrip(" ")]}
                 number += 1
 
-                #{"1":{"1": ["LEFT", "E"], "2": []}}
+                # {"1":{"1": ["LEFT", "E"], "2": []}}
 
             for alt in range(i + 1, len(P)):
                 if rule[0] == P[alt].lstrip(" ").rstrip(" ").split("->")[0]:
-                    N[alt + 1] = {f"{number}":  ["LEFT", rule[0].rstrip(" ")]}
+                    N[alt + 1] = {f"{number}": ["LEFT", rule[0].rstrip(" ")]}
                     P[alt] = rule[0].rstrip(" ") + "usd" + " -> " + str(P[alt].lstrip(" ").rstrip(" ").split("->")[1])
                     number += 1
 
             for j in rule[1].lstrip(" ").rstrip(" ").split(" "):
                 if j not in NT:
                     T[str(number)] = j.rstrip(" ")
-                    N[i+1][f"{number}"] = ["RIGHT", j.rstrip(" ")]
+                    N[i + 1][f"{number}"] = ["RIGHT", j.rstrip(" ")]
                     number += 1
                 elif j in NT:
-                    N[i+1][f"{number}"] = ["RIGHT", j.rstrip(" ")]
+                    N[i + 1][f"{number}"] = ["RIGHT", j.rstrip(" ")]
                     number += 1
 
     first = {}
-    # for k in N.keys():
-    #     if N[k][0] == "LEFT":
-    #         first[k] = set()
+    for k in N.keys():
+        for j in N[k].keys():
+            if N[k][j][0] == "LEFT":
+                first[j] = set()
 
-    # for i in range(0, len(P)):
-    #     rule = P[i].lstrip(" ").rstrip(" ").split("->")
-    #     if len(rule) == 2:
-    #         symbol = rule[1].lstrip(" ").rstrip(" ").split(" ")[0]
-    #         if symbol in NT:
-    #             if i + 1 < len(P):
-    #                 resp, fid = findfirst(nonterminal=symbol, nextrule=P[i + 1::], lf=deepcopy(first))
-    #                 for k in N.keys():
-    #                     if N[k][0] == "LEFT":
-    #                         if N[k][1] == rule[0].rstrip("usd ").rstrip(" "):
-    #                             if len(resp[k]) == 0:
-    #                                 for e in resp[fid]:
-    #                                     print(resp, "test")
-    #                                     resp[k].add(e)
-    #                                 first = resp
-    #                 print(resp, "test2")
-    #         elif symbol not in NT:
-    #
-    #             for k in N.keys():
-    #                 if N[k][0] == "LEFT":
-    #                     if N[k][1] == rule[0].rstrip("usd ").rstrip(" "):
-    #                         if len(first[k]) == 0:
-    #                             print(symbol, rule, k, first)
-    #                             first[k].add(symbol.rstrip(" "))
-    #                             break
+    while True:
+        trigger = False
+        before_first = deepcopy(first)
+        first = findfirst2(first)
+        for i in first.keys():
+            if len(first[i]) != len(before_first[i]):
+                trigger += True
 
+        if trigger is False:
+            break
 
-    # for i in range(0, len(P)):
-    #     rule = P[i].lstrip(" ").rstrip(" ").split("->")
-    #     if len(rule) == 2:
-    #         symbol = rule[1].lstrip(" ").rstrip(" ").split(" ")[0]
-    #         if symbol in NT:
-    #             if i + 1 < len(P):
-    #                 resp = findfirst(nonterminal=symbol, nextrule=P[i + 1::])
-    #                 first[rule[0].rstrip("usd ")] = [x for x in resp]
-    #         elif symbol not in NT:
-    #             if first.get(rule[0].rstrip("usd ")) is None:
-    #                 first[rule[0].rstrip("usd ")] = [symbol.lstrip(" ").rstrip(" ")]
-    #             elif first.get(rule[0].rstrip("usd ")):
-    #                 first[rule[0].rstrip("usd ")].append(symbol.lstrip(" ").rstrip(" "))
+    first_by_nonterminal = {}
+    for i in NT:
+        for j in N.keys():
+            for m in N[j].keys():
+                if N[j][m][0] == "LEFT":
+                    if N[j][m][1] == i:
+                        for k in first[m]:
+                            if first_by_nonterminal.get(i) is None:
+                                first_by_nonterminal[i] = []
+                                first_by_nonterminal[i].append(k)
+                            elif first_by_nonterminal.get(i) is not None:
+                                first_by_nonterminal[i].append(k)
 
+    follow = {}
+    for k in N.keys():
+        for j in N[k].keys():
+            if N[k][j][0] == "LEFT":
+                if follow.get(str(N[k][j][1])) is None:
+                    if k == 1:
+                        follow[N[k][j][1]] = set()
+                        follow[N[k][j][1]].add("halt")
+                    elif k != 1:
+                        follow[N[k][j][1]] = set()
 
-    # follow = {}
-    # for k in first.keys():
-    #     if N[str(1)] == k:
-    #         follow[k] = set()
-    #         follow[k].add("halt")
-    #     else:
-    #         follow[k] = set()
-    #
-    # while True:
-    #     trigger = False
-    #     before_follow = deepcopy(follow)
-    #     follow = findfollow(follow)
-    #     for i in follow.keys():
-    #         if len(follow[i]) != len(before_follow[i]):
-    #             trigger += True
-    #
-    #     if trigger is False:
-    #         break
-    #
-    # guide = {}
-    # for i in NT:
-    #     if "e" in first[i]:
-    #         Sa = copy(first[i])
-    #         Sa.remove("e")
-    #         guide[i] = follow[i].union(Sa)
-    #     elif "e" not in first[i]:
-    #         Sa = copy(first[i])
-    #         guide[i] = Sa
+    while True:
+        trigger = False
+        before_follow = deepcopy(follow)
+        follow = findfollow(follow)
+        for i in follow.keys():
+            if len(follow[i]) != len(before_follow[i]):
+                trigger += True
 
+        if trigger is False:
+            break
 
-    print(T, " - Terminals")
-    print(NT, " - Non terminals 1")
-    print(N, " - Non terminals")
-    print(P)
-    # print(first)
-    # print(follow)
-    # print(guide, "guide")
+    guide = {}
+    for i in first:
+        for j in N.keys():
+            for k in N[j].keys():
+                if N[j][k][0] == "LEFT":
+                    if k == i:
+                        if "e" in first[i]:
+                            Sa = copy(first[i])
+                            Sa.remove("e")
+                            guide[i] = follow[N[j][k][1]].union(Sa)
+                        elif "e" not in first[i]:
+                            Sa = copy(first[i])
+                            guide[i] = Sa
+
+    Ml = set()
+    Mr = set()
+
+    for i in first.keys():
+        Ml.add(int(i))
+
+    for i in N.keys():
+        biggest: int = -1
+        for j in N[i].keys():
+            if N[i][j][0] == "RIGHT":
+                if int(j) > int(biggest):
+                    biggest = int(j)
+        Mr.add(biggest)
+
+    # print(T, " - Terminals")
+    # print(NT, " - Non terminals 1")
+    # print(N, " - Non terminals")
+    # print(P)
+    print(first)
+    print(follow)
+    print(guide, "guide")
+    print(Ml, "Ml")
+    print(Mr, "Mr")
