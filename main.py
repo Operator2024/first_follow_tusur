@@ -1,5 +1,5 @@
 from copy import copy, deepcopy
-from typing import Text, List, Dict
+from typing import Text, List, Dict, Set
 
 
 def findfirst(nonterminal: Text, nextrule: List, lf=None, idx=None):
@@ -43,7 +43,8 @@ def findfirst2(f):
                     for k in N[i + 1].keys():
                         if N[i + 1][k][0] == "LEFT":
                             if N[i + 1][k][1] == rule[0].rstrip("usd ").rstrip(" "):
-                                resp = findfirst(nonterminal=symbol, nextrule=P, lf=deepcopy(first), idx=k)
+                                resp = findfirst(nonterminal=symbol, nextrule=P, lf=deepcopy(first),
+                                                 idx=k)
                                 first = resp
             elif symbol not in NT:
                 for j in N.keys():
@@ -138,7 +139,8 @@ if __name__ == '__main__':
             for alt in range(i + 1, len(P)):
                 if rule[0] == P[alt].lstrip(" ").rstrip(" ").split("->")[0]:
                     N[alt + 1] = {f"{number}": ["LEFT", rule[0].rstrip(" ")]}
-                    P[alt] = rule[0].rstrip(" ") + "usd" + " -> " + str(P[alt].lstrip(" ").rstrip(" ").split("->")[1])
+                    P[alt] = rule[0].rstrip(" ") + "usd" + " -> " + str(
+                        P[alt].lstrip(" ").rstrip(" ").split("->")[1])
                     number += 1
 
             for j in rule[1].lstrip(" ").rstrip(" ").split(" "):
@@ -230,12 +232,132 @@ if __name__ == '__main__':
                     biggest = int(j)
         Mr.add(biggest)
 
-    # print(T, " - Terminals")
-    # print(NT, " - Non terminals 1")
-    # print(N, " - Non terminals")
-    # print(P)
-    print(first)
-    print(follow)
-    print(guide, "guide")
-    print(Ml, "Ml")
-    print(Mr, "Mr")
+    table = dict()
+
+    for i in T:
+        if table.get(int(i)) is None:
+            table[int(i)] = {"X": T[i], "terminals": None, "jump": None, "accept": None, "stack":
+                None,
+                             "return": None, "error": None}
+
+    for i in N:
+        for j in N[i]:
+            if table.get(int(j)) is None:
+                table[int(j)] = {"X": N[i][j][1], "terminals": None, "jump": None, "accept": None,
+                                 "stack": None, "return": None, "error": None}
+
+    for i in guide:
+        table[int(i)]["terminals"] = deepcopy(guide[i])
+
+    # добавил в таблицу терминалы
+    for i in N:
+        for j in N[i]:
+            if int(j) not in Ml and j not in T:
+                # print(N[i][j][1], f" - Number - {j}")
+
+                if table[int(j)]["terminals"] is None:
+                    _tmp = set()
+                    if "e" in first_by_nonterminal[N[i][j][1]]:
+                        for z in first_by_nonterminal[N[i][j][1]]:
+                            if z != "e":
+                                _tmp.add(z)
+                            for x in N[i]:
+                                if N[i][x][0] == "LEFT":
+                                    table[int(j)]["terminals"]: Set = _tmp.union(follow[N[i][x][1]])
+                    elif "e" not in first_by_nonterminal[N[i][j][1]]:
+                        for z in first_by_nonterminal[N[i][j][1]]:
+                            _tmp.add(z)
+                        table[int(j)]["terminals"] = _tmp
+
+    for i in T:
+        if T[i] != "e":
+            if table[int(i)]["terminals"] is None:
+                table[int(i)]["terminals"] = {T[i]}
+        elif T[i] == "e":
+            for j in N:
+                for k in N[j]:
+                    if k == i:
+                        for z in N[j]:
+                            if N[j][z][0] == "LEFT":
+                                if table[int(i)]["terminals"] is None:
+                                    table[int(i)]["terminals"] = follow[N[j][z][1]]
+
+    # добавил jump
+    for i in Ml:
+        for j in N:
+            for k in N[j]:
+                if N[j][k][0] == "LEFT":
+                    if int(k) == i:
+                        if table[int(i)]["jump"] is None:
+                            table[int(i)]["jump"] = int(sorted(N[j].keys())[1])
+
+    for i in N:
+        for j in N[i]:
+            if N[i][j][0] == "RIGHT":
+                if j not in T:
+                    for k in N:
+                        for z in N[k]:
+                            if N[i][j][1] == N[k][z][1] and N[k][z][0] == "LEFT":
+                                if table[int(j)]["jump"] is None:
+                                    table[int(j)]["jump"] = int(z)
+
+    for i in T:
+        if int(i) not in Mr:
+            for k in N:
+                for j in N[k]:
+                    if j == i:
+                        idx = sorted(N[k].keys()).index(i)
+                        # bugfix
+                        # if len(sorted(N[k].keys())) - 1 < idx:
+                        if idx < len(sorted(N[k].keys())):
+                            if table[int(i)]["jump"] is None:
+                                table[int(i)]["jump"] = int(sorted(N[k].keys())[idx + 1])
+
+    for i in table.keys():
+        if table[int(i)]["jump"] is None:
+            table[int(i)]["jump"] = 0
+
+    # добавил accept
+    for i in T:
+        if T[i] != "e":
+            if table[int(i)]["accept"] is None:
+                table[int(i)]["accept"] = "true"
+
+    for i in table.keys():
+        if table[int(i)]["accept"] is None:
+            table[int(i)]["accept"] = "false"
+
+    # добавил stack
+    for i in N:
+        for j in N[i]:
+            if N[i][j][0] == "RIGHT" and int(j) not in Mr and j not in T:
+                if table[int(j)]["stack"] is None:
+                    table[int(j)]["stack"] = "true"
+
+    for i in table.keys():
+        if table[int(i)]["stack"] is None:
+            table[int(i)]["stack"] = "false"
+
+    # добавил return
+    for i in T.keys():
+        if T[i] == "e" and int(i) in Mr or T[i] != "e" and int(i) in Mr:
+            if table[int(i)]["return"] is None:
+                table[int(i)]["return"] = "true"
+
+    for i in table.keys():
+        if table[int(i)]["return"] is None:
+            table[int(i)]["return"] = "false"
+
+    # добавил error
+    for i in range(1, len(N)):
+        if i + 1 <= len(N):
+            minimal_curr = min(N[i].keys())
+            minimal_next = min(N[i + 1].keys())
+            if N[i][minimal_curr][0] == "LEFT" and N[i + 1][minimal_next][0] == "LEFT":
+                if N[i][minimal_curr][1] == N[i + 1][minimal_next][1]:
+                    if table[int(minimal_curr)]["error"] is None:
+                        table[int(minimal_curr)]["error"] = "false"
+
+    for i in table.keys():
+        if table[int(i)]["error"] is None:
+            table[int(i)]["error"] = "true"
