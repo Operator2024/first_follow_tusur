@@ -1,3 +1,4 @@
+import re
 from copy import copy, deepcopy
 from typing import Text, List, Dict, Set
 
@@ -105,6 +106,23 @@ def findfollow(follow: Dict) -> Dict:
                         pre_result = loc_follow[A].union(Fb)
                         loc_follow[A] = pre_result
     return loc_follow
+
+
+def llchain(table: Dict, stack: List, item: str, idx: int) -> Text or List:
+    if item in table[idx]["terminals"]:
+        if table[idx]["accept"] == "true":
+            return "accept"
+        elif table[idx]["stack"] == "true":
+            stack.append(idx)
+            return ["stack", stack]
+        elif table[idx]["return"] == "true":
+            return ["return", stack]
+        elif int(table[idx]["jump"]) != 0:
+            return ["jump", int(table[idx]["jump"])]
+    elif table[idx]["error"] == "false":
+        return ["error", idx]
+    else:
+        return item
 
 
 if __name__ == '__main__':
@@ -361,3 +379,86 @@ if __name__ == '__main__':
     for i in table.keys():
         if table[int(i)]["error"] is None:
             table[int(i)]["error"] = "true"
+
+    # for i in sorted(table.keys()):
+    #     print(table[i])
+
+    # orig = ["(", "x", "+", "x", ")", "*", "x", "halt"]
+    # orig = ["struct", "cpp", "(", ")", ";" ,"halt"]
+
+    with open("struct.txt", encoding="utf8") as f:
+        struct = f.read()
+    struct = re.sub("\n", " ", struct)
+    struct = struct.split(" ")
+
+    if ";" in struct[len(struct) - 2]:
+        l_struct = len(struct[len(struct) - 2])
+        struct[len(struct) - 2] = struct[len(struct) - 2][0:l_struct - 1]
+        struct[len(struct) - 1] = ";"
+    struct.append("halt")
+    orig = struct
+    state = 0
+    stack = []
+    trigger = False
+    k = 0
+    kidx = 0
+
+    while True:
+        # break
+        k += 1
+        if trigger is False:
+            stack.append(0)
+            state += 1
+            trigger = True
+
+        print(f"Текущий стек - {stack}, Номер итерации - {k}", state)
+        # print(kidx)
+        response = llchain(table=table, stack=stack, item=orig[kidx], idx=state)
+        if isinstance(response, list):
+            if response[0] == "error":
+                state += 1
+            elif response[0] == "stack":
+                stack = copy(response[1])
+                if int(table[state]["jump"]) != 0:
+                    state = int(table[state]["jump"])
+                else:
+                    print("Обнаружен переход в нулевую строку")
+            elif response[0] == "return":
+                stack = copy(response[1])
+                M = stack.pop()
+                if M == 0:
+                    if kidx + 1 < len(orig):
+                        if orig[kidx + 1] == "halt":
+                            print(f"Разбор окончен {orig[kidx + 1]}")
+                            break
+                    elif kidx < len(orig):
+                        if orig[kidx] == "halt":
+                            print(f"Разбор окончен {orig[kidx]}")
+                            break
+                elif M != 0:
+                    state = M + 1
+            elif response[0] == "jump":
+                state = response[1]
+        elif isinstance(response, str):
+            if response == "halt":
+                print("Разбор окончен")
+                break
+            elif response == "accept":
+                kidx += 1
+                if int(table[state]["jump"]) != 0:
+                    state = int(table[state]["jump"])
+                else:
+                    pass
+                if table[state]["return"] == "true":
+                    M = stack.pop()
+                    if M == 0:
+                        print(f"Разбор окончен {orig[kidx]}")
+                        break
+                    state = M + 1
+                print(f"Accept: Следующий символ цепочки {orig[kidx]}")
+        else:
+            pass
+
+    print("Таблица разбора. Построчно")
+    for i in sorted(table):
+        print(table[i])
