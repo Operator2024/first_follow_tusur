@@ -1,0 +1,5 @@
+A -> X Y Z
+X -> struct
+Y -> abc
+Y -> e
+Z -> ;
