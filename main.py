@@ -1,4 +1,5 @@
 import re
+import time
 from copy import copy, deepcopy
 from typing import Text, List, Dict, Set, Tuple
 
@@ -119,13 +120,15 @@ def ll_verifier2(_guides: Dict, _rules: List) -> Text:
             for _guide in nonterminal_by_num[_letter]:
                 for q in nonterminal_by_num[_letter]:
                     if _guide != q:
-                        for v in _guides[_guide]:
-                            if v in _guides[q]:
-                                return "Грамматика не является LL(1), так как " \
-                                       f"направляющие множества для {_guide} " \
-                                       f"пересекаются"
-                            else:
-                                pass
+                        if _guides.get(q) and _guides.get(_guide):
+                            for v in _guides[_guide]:
+                                if v in _guides[q]:
+                                    print(v, _guides, q)
+                                    return "Грамматика не является LL(1), " \
+                                           "так как направляющие множества " \
+                                           f"для {_guide} пересекаются"
+                                else:
+                                    pass
         else:
             pass
     return "Ok"
@@ -261,6 +264,96 @@ def llchain(table: Dict, stack: List, item: str, idx: int) -> Text or List:
         return item
 
 
+# передать элемент целиком, не букву!
+def llchain2(_table: Dict, _stack: List, _item: Text, _index_item: int = 0,
+             _number_str_table: int = 1):
+    _k = _index_item
+    _i = _number_str_table
+    _tmp = ""
+    _accept_ = tuple()
+    _stack_ = tuple()
+    _return_ = tuple()
+    _jump_ = tuple()
+    for _idx, _val in enumerate(_table[_i]["terminals"]):
+        # _index_item - always 0
+        if _item == _val or _val == "HALT":
+            if _item[_index_item] == _val[_index_item]:
+                if _table[_i]["accept"] == "true":
+                    for x in range(0, len(_item)):
+                        _tmp += _item[x]
+                    if _tmp != _val and len(_table[_i]["terminals"]) == _idx:
+                        return f"Элемент цепочки {_item} не совпадает с " \
+                               f"ожидаемым элементом {_val}"
+                    _accept_ = "accept", _stack, _tmp
+                if _table[_i]["stack"] == "true":
+                    _stack.append(_i)
+                    _stack_ = "stack", _stack, _i
+                if _table[_i]["return"] == "true":
+                    _i = _stack.pop()
+                    if _i != 0:
+                        _i += 1
+                        _return_ = "return", _stack, _i
+                    else:
+                        _return_ = "return", _stack, _i
+                if _i != 0:
+                    if _table[_i]["jump"] != 0:
+                        _i = table[_i]["jump"]
+                        _jump_ = "jump", _stack, _i
+                return [_accept_, _stack_, _return_, _jump_]
+            elif _table[_i]["error"] == "false":
+                return ["error", _stack, _i + 1]
+            else:
+                if len(_stack) == 0 and _item == "HALT":
+                    return "HALT"
+        else:
+            if _table[_i]["error"] == "false":
+                return ["error", _stack, _i + 1]
+    return f"Элемент цепочки {_item} не совпадает с ожидаемым элементом"
+
+
+# получает элемент, и номер строки в таблице разбора
+# возврат из функции происходит только в случае, если в таблице разбора
+# при проходе по цепочке обнаружен accept: true
+def llchain3(x: Text, n: int, _table: Dict, _stack: List, _itern: int) -> List:
+    _accept_ = False
+    while True:
+        _itern += 1
+        print(f"Итерация {_itern}, Стек: {_stack}, Номер строки: {n}, "
+              f"Элемент: {x}")
+        time.sleep(0.5)
+        r2 = llchain2(_table=_table, _stack=_stack, _item=x, _index_item=0,
+                      _number_str_table=n)
+        if "Элемент цепочки " in r2: raise ValueError(r2)
+        if r2 != "HALT":
+            if r2[0] != "error":
+                if len(r2[0]) != 0:
+                    if r2[0][0] == "accept":
+                        _stack = r2[0][1]
+                        _lexema_ = r2[0][2]
+                        if _lexema_ == x:
+                            _accept_ = True
+                if len(r2[1]) != 0:
+                    if r2[1][0] == "stack":
+                        _stack = r2[1][1]
+                        n = r2[1][2]
+                if len(r2[3]) != 0:
+                    if r2[3][0] == "jump":
+                        _stack = r2[3][1]
+                        n = r2[3][2]
+                if len(r2[2]) != 0:
+                    if r2[2][0] == "return":
+                        _stack = r2[2][1]
+                        n = r2[2][2]
+                if _accept_:
+                    return [n, _stack, _itern]
+            else:
+                _stack = r2[1]
+                n = r2[2]
+        else:
+            print("HALT")
+            break
+
+
 if __name__ == '__main__':
     # Множества терминалов, не терминалов, правила
     T = {}
@@ -311,9 +404,11 @@ if __name__ == '__main__':
                     # {"1":{"1": ["LEFT", "E"], "2": []}}
                 for alt in range(i + 1, len(P)):
                     if rule[0] == P[alt].lstrip(" ").rstrip(" ").split("->")[0]:
-                        N[alt + 1] = {
-                            f"{number}": ["LEFT", rule[0].rstrip(" ")]
-                        }
+                        # rewrite fix
+                        if N.get(alt + 1) is None:
+                            N[alt + 1] = {
+                                f"{number}": ["LEFT", rule[0].rstrip(" ")]
+                            }
                         P[alt] = rule[0].rstrip(" ") + "usd" + " -> " + str(
                             P[alt].lstrip(" ").rstrip(" ").split("->")[1])
                         number += 1
@@ -361,7 +456,7 @@ if __name__ == '__main__':
                     if follow.get(str(N[k][j][1])) is None:
                         if k == 1:
                             follow[N[k][j][1]] = set()
-                            follow[N[k][j][1]].add("halt")
+                            follow[N[k][j][1]].add("HALT")
                         elif k != 1:
                             follow[N[k][j][1]] = set()
 
@@ -389,8 +484,9 @@ if __name__ == '__main__':
                                 Sa = copy(first[i])
                                 guide[i] = Sa
 
-        print(guide, "guide", N)
+        # bug ll_verifier2
         resp = ll_verifier2(guide, N)
+        # resp = "Ok"
         if resp != "Ok":
             print(resp)
         else:
@@ -433,19 +529,15 @@ if __name__ == '__main__':
 
                         if table[int(j)]["terminals"] is None:
                             _tmp = set()
-                            if "e" in first_by_nonterminal[N[i][j][1]]:
-                                for z in first_by_nonterminal[N[i][j][1]]:
-                                    if z != "e":
-                                        _tmp.add(z)
-                                    for x in N[i]:
-                                        if N[i][x][0] == "LEFT":
-                                            table[int(j)][
-                                                "terminals"]: Set = _tmp.union(
-                                                follow[N[i][x][1]])
-                            elif "e" not in first_by_nonterminal[N[i][j][1]]:
-                                for z in first_by_nonterminal[N[i][j][1]]:
-                                    _tmp.add(z)
-                                table[int(j)]["terminals"] = _tmp
+                            _A = N[i][j][1]
+                            _tmp = _tmp.union(first_by_nonterminal[_A])
+                            for z in N[i]:
+                                if N[i][z][0] == "LEFT":
+                                    _B = N[i][z][1]
+                            if "e" in _tmp:
+                                _tmp = _tmp.union(follow[_B])
+                                _tmp.remove("e")
+                            table[int(j)]["terminals"] = _tmp
 
             for i in T:
                 if T[i] != "e":
@@ -534,116 +626,52 @@ if __name__ == '__main__':
                     table[int(i)]["return"] = "false"
 
             # добавил error
-            for i in range(1, len(N)):
-                if i + 1 <= len(N):
-                    minimal_curr = min(N[i].keys())
-                    minimal_next = min(N[i + 1].keys())
-                    if N[i][minimal_curr][0] == "LEFT" and \
-                            N[i + 1][minimal_next][
-                                0] == "LEFT":
-                        if N[i][minimal_curr][1] == N[i + 1][minimal_next][1]:
-                            if table[int(minimal_curr)]["error"] is None:
-                                table[int(minimal_curr)]["error"] = "false"
+            # for i in range(1, len(N)):
+            #     if i + 1 <= len(N):
+            #         minimal_curr = min(N[i].keys())
+            #         minimal_next = min(N[i + 1].keys())
+            #         if N[i][minimal_curr][0] == "LEFT" and \
+            #                 N[i + 1][minimal_next][
+            #                     0] == "LEFT":
+            #             if N[i][minimal_curr][1] == N[i + 1][minimal_next][1]:
+            #                 if table[int(minimal_curr)]["error"] is None:
+            #                     table[int(minimal_curr)]["error"] = "false"
+            for i, v in enumerate(Ml):
+                if i + 1 < len(Ml):
+                    if list(Ml)[i + 1] - list(Ml)[i] == 1:
+                        if table[v]["error"] is None:
+                            table[v]["error"] = "false"
+                    else:
+                        pass
 
             for i in table.keys():
                 if table[int(i)]["error"] is None:
                     table[int(i)]["error"] = "true"
 
             for i in sorted(table.keys()):
-                print(table[i])
+                print(i, table[i])
 
-    # Алгоритм разбора цепочки (ниже)
-    #
-    # orig = ["(", "x", "+", "x", ")", "*", "x", "halt"]
-    # orig = ["struct", "abc", "{}", "halt"]
-    #
-    # with open("struct.txt", encoding="utf8") as f:
-    #     struct = f.read()
-    # struct = re.sub("\n", " ", struct)
-    # struct = struct.split(" ")
-    #
-    # if ";" in struct[len(struct) - 2]:
-    #     l_struct = len(struct[len(struct) - 2])
-    #     struct[len(struct) - 2] = struct[len(struct) - 2][0:l_struct - 1]
-    #     struct[len(struct) - 1] = ";"
-    # struct.append("halt")
-    # # orig = struct
-    # state = 0
-    # stack = []
-    # trigger = False
-    # k = 0
-    # kidx = 0
-    #
-    # while True:
-    #     # break
-    #     k += 1
-    #     if trigger is False:
-    #         stack.append(0)
-    #         state += 1
-    #         trigger = True
-    #
-    #     print(f"Текущий стек - {stack}, Номер итерации - {k}", state)
-    #     # print(kidx)
-    #
-    #     response = llchain(table=table, stack=stack, item=orig[kidx], idx=state)
-    #     print(response)
-    #     if isinstance(response, list):
-    #         if response[0] == "error":
-    #             state += 1
-    #         elif response[0] == "stack":
-    #             stack = copy(response[1])
-    #             if int(table[state]["jump"]) != 0:
-    #                 state = int(table[state]["jump"])
-    #             else:
-    #                 print("Обнаружен переход в нулевую строку")
-    #         elif response[0] == "return":
-    #             stack = copy(response[1])
-    #             M = stack.pop()
-    #             if M == 0:
-    #                 if kidx + 1 < len(orig):
-    #                     if orig[kidx + 1] == "halt":
-    #                         print(f"Разбор окончен {orig[kidx + 1]}")
-    #                         break
-    #                 elif kidx < len(orig):
-    #                     if orig[kidx] == "halt":
-    #                         print(f"Разбор окончен {orig[kidx]}")
-    #                         break
-    #             elif M != 0:
-    #                 state = M + 1
-    #         elif response[0] == "jump":
-    #             state = response[1]
-    #     elif isinstance(response, str):
-    #         if response == "halt":
-    #             print("Разбор окончен")
-    #             break
-    #         elif response == "accept":
-    #             kidx += 1
-    #             if int(table[state]["jump"]) != 0:
-    #                 state = int(table[state]["jump"])
-    #             else:
-    #                 pass
-    #             if table[state]["return"] == "true":
-    #                 M = stack.pop()
-    #                 if M == 0:
-    #                     print(f"Разбор окончен {orig[kidx]}")
-    #                     break
-    #                 state = M + 1
-    #             print(f"Accept: Следующий символ цепочки {orig[kidx]}", orig)
-    #     else:
-    #         pass
-    #
-    # print("Таблица разбора. Построчно")
-    # for i in sorted(table):
-    #     print(table[i])
+            test_struct = ["struct", "яяя", ";", "HALT"]
+            test_struct = ["struct", "person", "{", "}", ";", "HALT"]
+            test_struct = ["struct", "person", ";", "HALT"]
+            stack = [0]
+            stroka = 1
+            itern = 1
 
-    # print(P)
-    # print(NT)
-    # print(N)
-    # print(T)
-    # print(follow)
-    #
-    # for i in sorted(table.keys()):
-    #     print(i, table[i])
-
-    # print(N)
-    # print(guide)
+            for i, v in enumerate(test_struct):
+                if i == 0:
+                    r = llchain3(x=v, n=1, _table=table, _stack=stack,
+                                 _itern=itern)
+                    stack = r[1]
+                    itern = r[2]
+                else:
+                    if r[0] == 0 and v != "HALT":
+                        print("Обнаружен переход в нулевую строку")
+                    if r[0] == 0 and v == "HALT":
+                        print(f"Разбор окончен, стек: {stack}")
+                    else:
+                        r = llchain3(x=v, n=r[0], _table=table, _stack=stack,
+                                     _itern=itern)
+                        stack = r[1]
+                        itern = r[2]
+                # time.sleep(10)
