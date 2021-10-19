@@ -1,7 +1,9 @@
 import re
 import time
 from copy import copy, deepcopy
-from typing import Text, List, Dict, Set, Tuple
+from typing import List, Dict, Tuple, Text, Set
+
+from sparser import varDeclaration
 
 filename = "input.txt"
 
@@ -40,7 +42,7 @@ def f(_htable: Dict, _rules: List) -> Tuple[Dict, List]:
     return _htable, _rules
 
 
-def ll_verifier() -> Set:
+def ll_verifier() -> Dict:
     loc_rule = []
     # N - non terminal, T - terminal
     N = set()
@@ -112,7 +114,7 @@ def ll_verifier2(_guides: Dict, _rules: List) -> Text:
         for _item in _rules[_rule]:
             if _rules[_rule][_item][0] == "LEFT":
                 if nonterminal_by_num.get(_rules[_rule][_item][1]) is None:
-                    nonterminal_by_num[_rules[_rule][_item][1]] = set(_item)
+                    nonterminal_by_num[_rules[_rule][_item][1]] = {_item}
                 else:
                     nonterminal_by_num[_rules[_rule][_item][1]].add(_item)
     for _letter in nonterminal_by_num:
@@ -274,6 +276,7 @@ def llchain2(_table: Dict, _stack: List, _item: Text, _index_item: int = 0,
     _stack_ = tuple()
     _return_ = tuple()
     _jump_ = tuple()
+    _terminals_ = len(_table[_i]["terminals"])
     for _idx, _val in enumerate(_table[_i]["terminals"]):
         # _index_item - always 0
         if _item == _val or _val == "HALT":
@@ -305,7 +308,7 @@ def llchain2(_table: Dict, _stack: List, _item: Text, _index_item: int = 0,
             else:
                 if len(_stack) == 0 and _item == "HALT":
                     return "HALT"
-        else:
+        elif _idx+1 == _terminals_:
             if _table[_i]["error"] == "false":
                 return ["error", _stack, _i + 1]
     return f"Элемент цепочки {_item} не совпадает с ожидаемым элементом"
@@ -651,27 +654,245 @@ if __name__ == '__main__':
             for i in sorted(table.keys()):
                 print(i, table[i])
 
-            test_struct = ["struct", "яяя", ";", "HALT"]
-            test_struct = ["struct", "person", "{", "}", ";", "HALT"]
-            test_struct = ["struct", "person", ";", "HALT"]
-            stack = [0]
-            stroka = 1
-            itern = 1
+            # парсер структуры
+            inChain = dict()
+            types = ["int", "string", "float"]
+            keywords = ["struct"]
+            variables = set()
+            leftBracket = False
+            rightBracket = False
 
-            for i, v in enumerate(test_struct):
-                if i == 0:
-                    r = llchain3(x=v, n=1, _table=table, _stack=stack,
-                                 _itern=itern)
-                    stack = r[1]
-                    itern = r[2]
+            with open("struct.txt") as f:
+                inFile = f.read()
+
+            print(inFile.split("\n"))
+            strings = inFile.split("\n")
+            while True:
+                if '' in strings:
+                    strings.remove('')
                 else:
-                    if r[0] == 0 and v != "HALT":
-                        print("Обнаружен переход в нулевую строку")
-                    if r[0] == 0 and v == "HALT":
-                        print(f"Разбор окончен, стек: {stack}")
+                    break
+
+            stack = [0]
+            itern = 0
+
+            for i, v in enumerate(strings):
+                line = 1 + i
+                column = 0
+                b_index = 0
+                e_index = 0
+
+                if leftBracket is False and rightBracket is False:
+                    if line == 1:
+                        if "{" in v and "}" in v:
+                            if ";" in v:
+                                if len(v.split(" ")) == 3:
+                                    if "{};" in v.split(" ")[2]:
+                                        # 1 kw name {}; +++
+                                        print(v.split(" "), "1")
+                                        for idx, val in enumerate(v.split(" ")):
+                                            if idx == 0:
+                                                _resp_ = llchain3(_table=table,
+                                                                  _stack=stack,
+                                                                  _itern=itern,
+                                                                  x=val, n=1)
+                                                stack = _resp_[1]
+                                                itern = _resp_[2]
+                                            else:
+                                                if val != "{};":
+                                                    _resp_ = llchain3(
+                                                        _table=table,
+                                                        _stack=stack,
+                                                        _itern=itern, x=val,
+                                                        n=_resp_[0])
+                                                    stack = _resp_[1]
+                                                    itern = _resp_[2]
+                                                else:
+                                                    for item in val:
+                                                        _resp_ = llchain3(
+                                                            _table=table,
+                                                            _stack=stack,
+                                                            _itern=itern,
+                                                            x=item,
+                                                            n=_resp_[0])
+                                            if not _resp_[1] and _resp_[0] == 0:
+                                                print("Разбор окончен, "
+                                                      f"стек пуст: {_resp_[1]}"
+                                                      )
+                                else:
+                                    if keywords[0] in v.split(" ")[0]:
+                                        if "{" in v.split(" ")[1]:
+                                            print(f"Ожидался один пробел в "
+                                                  f"позиции "
+                                                  f"{re.search('{', v).span()[0] + 1},"
+                                                  f" строка {line}"
+                                                  " перед '{' ")
+                                        elif "}" in v.split(" ")[3] or \
+                                                ";" in v.split(" ")[3]:
+                                            print("Ожидался знак '}' "
+                                                  f"в позиции "
+                                                  f"{re.search('}', v).span()[0]}"
+                                                  f" строка {line}")
+                            else:
+                                print(v.split(" "), "err")
+                                if len(v.split(" ")) == 3:
+                                    if "{}" in v.split(" ")[2]:
+                                        print(f"Ожидался знак ';' в позиции "
+                                              f"{re.search('}', v).span()[1]+1}"
+                                              f" строка {line}")
+                                elif len(v.split(" ")) == 2:
+                                    if "{}" in v.split(" ")[1]:
+                                        print(f"Ожидался пробел "
+                                              f"в позиции "
+                                              f"{re.search('{', v).span()[0]+1}"
+                                              f" строка {line}")
+                        elif "{" in v:
+                            print(v.split(" "), "test")
+                            if len(v.split(" ")) == 3:
+                                print(v.split(" "), "3")
+                                # 3 kw name {
+                                for idx, val in enumerate(v.split(" ")):
+                                    if idx == 0:
+                                        _resp_ = llchain3(_table=table,
+                                                          _stack=stack,
+                                                          _itern=itern,
+                                                          x=val, n=1)
+                                        stack = _resp_[1]
+                                        itern = _resp_[2]
+                                    else:
+                                        _resp_ = llchain3(_table=table,
+                                                          _stack=stack,
+                                                          _itern=itern, x=val,
+                                                          n=_resp_[0])
+                                        stack = _resp_[1]
+                                        itern = _resp_[2]
+                                    if not _resp_[1] and _resp_[0] == 0:
+                                        print("Разбор окончен, "
+                                              f"стек пуст: {_resp_[1]}"
+                                              )
+                                leftBracket = True
+                            elif len(v.split(" ")) >= 4:
+                                if v.split(" ")[3] == '':
+                                    print(f"Обнаружен лишний пробел в позиции"
+                                          f" {re.search('{', v).span()[1]+1} "
+                                          f"строка {line}")
+                            else:
+                                print(f"Ожидался пробел в позиции "
+                                      f"{re.search('{', v).span()[0] +1} "
+                                      f"строка {line}")
+                        elif ";" in v:
+                            print(v, "2")
+                            # 2 kw name;
+                            if len(v.split(";")) == 2:
+                                _idx = 0
+                                for idx, val in enumerate(v.split(";")):
+                                    for k in val.lstrip(" ").rstrip(" ").split(
+                                            " "):
+                                        if _idx == 0:
+                                            _resp_ = llchain3(_table=table,
+                                                              _stack=stack,
+                                                              _itern=itern,
+                                                              x=k, n=1
+                                                              )
+                                            stack = _resp_[1]
+                                            itern = _resp_[2]
+                                            _idx += 1
+                                        else:
+                                            if _idx < 2:
+                                                _resp_ = llchain3(_table=table,
+                                                                  _stack=stack,
+                                                                  _itern=itern,
+                                                              x=k, n=_resp_[0])
+                                                stack = _resp_[1]
+                                                itern = _resp_[2]
+                                            else:
+                                                _resp_ = llchain3(_table=table,
+                                                                  _stack=stack,
+                                                                  _itern=itern,
+                                                                  x=";",
+                                                                  n=_resp_[0])
+                                                stack = _resp_[1]
+                                                itern = _resp_[2]
+                                            _idx += 1
+                                            if not _resp_[1] and _resp_[0] == 0:
+                                                print("Разбор окончен, "
+                                                      f"стек пуст: {_resp_[1]}"
+                                                      )
+                        else:
+                            print("Ожидался знак '{' "
+                                  f"либо ';' в позиции {len(v.rstrip(' ')) + 1}"
+                                  f"")
+                elif leftBracket is True and rightBracket is False:
+                    if "}" not in v:
+                        resp = varDeclaration(v)
+                        if ";" == v[len(v) - 1]:
+                            if resp[0] in types and resp[1] != 1 and resp[
+                                2] == 1 and \
+                                    resp[3] == 1:
+                                # 4 type name ;
+                                print(v, f"Строка {line}", "4")
+                                r = varDeclaration(v)
+                                for idx, val in enumerate(r):
+                                    if idx not in [2, 3]:
+                                        _resp_ = llchain3(_table=table,
+                                                          _stack=stack,
+                                                          _itern=itern, x=val,
+                                                          n=_resp_[0])
+                                        stack = _resp_[1]
+                                        itern = _resp_[2]
+                            elif resp[0] in types and resp[1] != 1 and resp[
+                                2] == "=" \
+                                    and resp[3] != 1:
+                                print(v, f"Строка {line}", "5")
+                                r = varDeclaration(v)
+                                for idx, val in enumerate(r):
+                                    _resp_ = llchain3(_table=table,
+                                                      _stack=stack,
+                                                      _itern=itern, x=val,
+                                                      n=_resp_[0])
+                                    stack = _resp_[1]
+                                    itern = _resp_[2]
+                        else:
+                            print(f"Ожидался знак ';' либо '=' "
+                                  f"в позиции {len(v) + 1} строка {line}")
+                            break
                     else:
-                        r = llchain3(x=v, n=r[0], _table=table, _stack=stack,
-                                     _itern=itern)
-                        stack = r[1]
-                        itern = r[2]
+                        rightBracket = True
+                        # 6 };
+                        print(v, "6")
+                        for idx, val in enumerate(v):
+                            _resp_ = llchain3(_table=table, _stack=stack,
+                                              _itern=itern, x=val, n=_resp_[0])
+                            stack = _resp_[1]
+                            itern = _resp_[2]
+                        if not stack and _resp_[0] == 0:
+                            print(f"Разбор окончен, стек пуст: {_resp_[1]}")
+                elif leftBracket is True and rightBracket is True:
+                    print("THE END")
+                else:
+                    print(f"Неожиданный сценарий - {i},{v}")
+
+            # test_struct = ["struct", "яяя", ";", "HALT"]
+            # test_struct = ["struct", "person", "{", "}", ";", "HALT"]
+            # test_struct = ["struct", "person", ";", "HALT"]
+            # stack = [0]
+            # stroka = 1
+            # itern = 1
+            #
+            # for i, v in enumerate(test_struct):
+            #     if i == 0:
+            #         r = llchain3(x=v, n=1, _table=table, _stack=stack,
+            #                      _itern=itern)
+            #         stack = r[1]
+            #         itern = r[2]
+            #     else:
+            #         if r[0] == 0 and v != "HALT":
+            #             print("Обнаружен переход в нулевую строку")
+            #         if r[0] == 0 and v == "HALT":
+            #             print(f"Разбор окончен, стек: {stack}")
+            #         else:
+            #             r = llchain3(x=v, n=r[0], _table=table, _stack=stack,
+            #                          _itern=itern)
+            #             stack = r[1]
+            #             itern = r[2]
                 # time.sleep(10)
