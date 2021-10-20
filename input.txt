@@ -1,5 +1,16 @@
 A -> X Y Z
 X -> struct
-Y -> abc
-Y -> e
-Z -> ;
+Y -> person
+Z -> L D R E
+L -> {
+D -> T N P D
+D -> e
+T -> int
+T -> string
+N -> age
+N -> fname
+P -> = G
+P -> E
+E -> ;
+G -> 100 E
+R -> }

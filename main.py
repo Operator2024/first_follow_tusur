@@ -489,7 +489,6 @@ if __name__ == '__main__':
 
         # bug ll_verifier2
         resp = ll_verifier2(guide, N)
-        # resp = "Ok"
         if resp != "Ok":
             print(resp)
         else:
@@ -528,8 +527,6 @@ if __name__ == '__main__':
             for i in N:
                 for j in N[i]:
                     if int(j) not in Ml and j not in T:
-                        # print(N[i][j][1], f" - Number - {j}")
-
                         if table[int(j)]["terminals"] is None:
                             _tmp = set()
                             _A = N[i][j][1]
@@ -563,7 +560,6 @@ if __name__ == '__main__':
                         if N[j][k][0] == "LEFT":
                             if int(k) == i:
                                 if table[int(i)]["jump"] is None:
-                                    # table[int(i)]["jump"] = int(sorted(N[j].keys())[1])
                                     table[int(i)]["jump"] = \
                                         sorted([int(z) for z in N[j].keys()])[1]
 
@@ -586,7 +582,6 @@ if __name__ == '__main__':
                             if j == i:
                                 idx = sorted(N[k].keys()).index(i)
                                 # bugfix
-                                # if len(sorted(N[k].keys())) - 1 < idx:
                                 if idx < len(sorted(N[k].keys())):
                                     if table[int(i)]["jump"] is None:
                                         table[int(i)]["jump"] = int(
@@ -629,19 +624,9 @@ if __name__ == '__main__':
                     table[int(i)]["return"] = "false"
 
             # добавил error
-            # for i in range(1, len(N)):
-            #     if i + 1 <= len(N):
-            #         minimal_curr = min(N[i].keys())
-            #         minimal_next = min(N[i + 1].keys())
-            #         if N[i][minimal_curr][0] == "LEFT" and \
-            #                 N[i + 1][minimal_next][
-            #                     0] == "LEFT":
-            #             if N[i][minimal_curr][1] == N[i + 1][minimal_next][1]:
-            #                 if table[int(minimal_curr)]["error"] is None:
-            #                     table[int(minimal_curr)]["error"] = "false"
             for i, v in enumerate(Ml):
-                if i + 1 < len(Ml):
-                    if list(Ml)[i + 1] - list(Ml)[i] == 1:
+                if i + 1 <= len(Ml):
+                    if int(v)+1 in list(Ml):
                         if table[v]["error"] is None:
                             table[v]["error"] = "false"
                     else:
@@ -678,10 +663,7 @@ if __name__ == '__main__':
 
             for i, v in enumerate(strings):
                 line = 1 + i
-                column = 0
-                b_index = 0
-                e_index = 0
-
+                # добавить конфликт имен varConflict
                 if leftBracket is False and rightBracket is False:
                     if line == 1:
                         if "{" in v and "}" in v:
@@ -747,7 +729,6 @@ if __name__ == '__main__':
                                               f"{re.search('{', v).span()[0]+1}"
                                               f" строка {line}")
                         elif "{" in v:
-                            print(v.split(" "), "test")
                             if len(v.split(" ")) == 3:
                                 print(v.split(" "), "3")
                                 # 3 kw name {
@@ -827,8 +808,7 @@ if __name__ == '__main__':
                         resp = varDeclaration(v)
                         if ";" == v[len(v) - 1]:
                             if resp[0] in types and resp[1] != 1 and resp[
-                                2] == 1 and \
-                                    resp[3] == 1:
+                                2] == 1 and resp[3] == 1:
                                 # 4 type name ;
                                 print(v, f"Строка {line}", "4")
                                 r = varDeclaration(v)
@@ -841,8 +821,7 @@ if __name__ == '__main__':
                                         stack = _resp_[1]
                                         itern = _resp_[2]
                             elif resp[0] in types and resp[1] != 1 and resp[
-                                2] == "=" \
-                                    and resp[3] != 1:
+                                2] == "=" and resp[3] != 1:
                                 print(v, f"Строка {line}", "5")
                                 r = varDeclaration(v)
                                 for idx, val in enumerate(r):
@@ -871,28 +850,3 @@ if __name__ == '__main__':
                     print("THE END")
                 else:
                     print(f"Неожиданный сценарий - {i},{v}")
-
-            # test_struct = ["struct", "яяя", ";", "HALT"]
-            # test_struct = ["struct", "person", "{", "}", ";", "HALT"]
-            # test_struct = ["struct", "person", ";", "HALT"]
-            # stack = [0]
-            # stroka = 1
-            # itern = 1
-            #
-            # for i, v in enumerate(test_struct):
-            #     if i == 0:
-            #         r = llchain3(x=v, n=1, _table=table, _stack=stack,
-            #                      _itern=itern)
-            #         stack = r[1]
-            #         itern = r[2]
-            #     else:
-            #         if r[0] == 0 and v != "HALT":
-            #             print("Обнаружен переход в нулевую строку")
-            #         if r[0] == 0 and v == "HALT":
-            #             print(f"Разбор окончен, стек: {stack}")
-            #         else:
-            #             r = llchain3(x=v, n=r[0], _table=table, _stack=stack,
-            #                          _itern=itern)
-            #             stack = r[1]
-            #             itern = r[2]
-                # time.sleep(10)
