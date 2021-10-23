@@ -3,7 +3,7 @@ import time
 from copy import copy, deepcopy
 from typing import List, Dict, Tuple, Text, Set
 
-from sparser import varDeclaration
+from sparser import varDeclaration, varConflict
 
 filename = "input.txt"
 
@@ -311,7 +311,8 @@ def llchain2(_table: Dict, _stack: List, _item: Text, _index_item: int = 0,
         elif _idx+1 == _terminals_:
             if _table[_i]["error"] == "false":
                 return ["error", _stack, _i + 1]
-    return f"Элемент цепочки {_item} не совпадает с ожидаемым элементом"
+    return f"Элемент цепочки {_item} не совпадает с ожидаемым(и) " \
+           f"элементом/элементами"
 
 
 # получает элемент, и номер строки в таблице разбора
@@ -326,7 +327,8 @@ def llchain3(x: Text, n: int, _table: Dict, _stack: List, _itern: int) -> List:
         time.sleep(0.5)
         r2 = llchain2(_table=_table, _stack=_stack, _item=x, _index_item=0,
                       _number_str_table=n)
-        if "Элемент цепочки " in r2: raise ValueError(r2)
+        if "Элемент цепочки " in r2:
+            raise ValueError(r2 + f" {_table[n]['terminals']}")
         if r2 != "HALT":
             if r2[0] != "error":
                 if len(r2[0]) != 0:
@@ -569,9 +571,8 @@ if __name__ == '__main__':
                         if j not in T:
                             for k in N:
                                 for z in N[k]:
-                                    if N[i][j][1] == N[k][z][1] and N[k][z][
-                                        0] == \
-                                            "LEFT":
+                                    if N[i][j][1] == N[k][z][1] and N[k][z][0] \
+                                            == "LEFT":
                                         if table[int(j)]["jump"] is None:
                                             table[int(j)]["jump"] = int(z)
 
@@ -635,9 +636,22 @@ if __name__ == '__main__':
             for i in table.keys():
                 if table[int(i)]["error"] is None:
                     table[int(i)]["error"] = "true"
-
+            print(f"Множество нетерминалов -> {NT}")
+            print(f"Множество терминалов (с номерами элементов) -> {T}")
+            print(f"Множество правил (без маркировки) -> {P}")
+            print("=======")
+            print("Грамматика: число на верхнем уровне, обозначет номер "
+                  "правила, внутри маркировка правил и элементов грамматики, "
+                  "согласно алгоритмам из учебного пособия")
+            print(f"Грамматика (с маркировкой правил и элементов, json формат)"
+                  f" -> {N}")
+            print("=======")
+            print(f"Вспомогательные множества Ml -> {Ml} и Mr -> {Mr} ")
+            print("======= Таблица разбора, полученная из грамматики: =======")
             for i in sorted(table.keys()):
                 print(i, table[i])
+            print("======= Таблица разбора, полученная из грамматики: =======\n"
+                  )
 
             # парсер структуры
             inChain = dict()
@@ -650,7 +664,8 @@ if __name__ == '__main__':
             with open("struct.txt") as f:
                 inFile = f.read()
 
-            print(inFile.split("\n"))
+            # Debug
+            # print(inFile.split("\n"))
             strings = inFile.split("\n")
             while True:
                 if '' in strings:
@@ -660,7 +675,6 @@ if __name__ == '__main__':
 
             stack = [0]
             itern = 0
-
             for i, v in enumerate(strings):
                 line = 1 + i
                 # добавить конфликт имен varConflict
@@ -670,8 +684,8 @@ if __name__ == '__main__':
                             if ";" in v:
                                 if len(v.split(" ")) == 3:
                                     if "{};" in v.split(" ")[2]:
-                                        # 1 kw name {}; +++
-                                        print(v.split(" "), "1")
+                                        # 1 kw name {}; Debug
+                                        # print(v.split(" "), "1")
                                         for idx, val in enumerate(v.split(" ")):
                                             if idx == 0:
                                                 _resp_ = llchain3(_table=table,
@@ -711,12 +725,12 @@ if __name__ == '__main__':
                                                   " перед '{' ")
                                         elif "}" in v.split(" ")[3] or \
                                                 ";" in v.split(" ")[3]:
-                                            print("Ожидался знак '}' "
-                                                  f"в позиции "
+                                            print("Ожидался знак '}' в позиции "
                                                   f"{re.search('}', v).span()[0]}"
                                                   f" строка {line}")
                             else:
-                                print(v.split(" "), "err")
+                                # Debug
+                                # print(v.split(" "), "err")
                                 if len(v.split(" ")) == 3:
                                     if "{}" in v.split(" ")[2]:
                                         print(f"Ожидался знак ';' в позиции "
@@ -730,7 +744,8 @@ if __name__ == '__main__':
                                               f" строка {line}")
                         elif "{" in v:
                             if len(v.split(" ")) == 3:
-                                print(v.split(" "), "3")
+                                # Debug
+                                # print(v.split(" "), "3")
                                 # 3 kw name {
                                 for idx, val in enumerate(v.split(" ")):
                                     if idx == 0:
@@ -762,7 +777,8 @@ if __name__ == '__main__':
                                       f"{re.search('{', v).span()[0] +1} "
                                       f"строка {line}")
                         elif ";" in v:
-                            print(v, "2")
+                            # Debug
+                            # print(v, "2")
                             # 2 kw name;
                             if len(v.split(";")) == 2:
                                 _idx = 0
@@ -805,14 +821,16 @@ if __name__ == '__main__':
                                   f"")
                 elif leftBracket is True and rightBracket is False:
                     if "}" not in v:
+                        conflict_msg = f"Конфликт переменной в строке {line}," \
+                                       f" переменная с таким именем была " \
+                                       f"объявлена ранее!"
                         resp = varDeclaration(v)
                         if ";" == v[len(v) - 1]:
-                            if resp[0] in types and resp[1] != 1 and resp[
-                                2] == 1 and resp[3] == 1:
-                                # 4 type name ;
-                                print(v, f"Строка {line}", "4")
-                                r = varDeclaration(v)
-                                for idx, val in enumerate(r):
+                            if resp[0] in types and resp[1] != 1 and resp[2] ==\
+                                    1 and resp[3] == 1:
+                                # 4 type name ; Debug
+                                # print(v, f"Строка {line}", "4")
+                                for idx, val in enumerate(resp):
                                     if idx not in [2, 3]:
                                         _resp_ = llchain3(_table=table,
                                                           _stack=stack,
@@ -820,25 +838,39 @@ if __name__ == '__main__':
                                                           n=_resp_[0])
                                         stack = _resp_[1]
                                         itern = _resp_[2]
-                            elif resp[0] in types and resp[1] != 1 and resp[
-                                2] == "=" and resp[3] != 1:
-                                print(v, f"Строка {line}", "5")
-                                r = varDeclaration(v)
-                                for idx, val in enumerate(r):
+                                    if idx == 1 and varConflict(var=resp[1],
+                                                                evars=variables
+                                                                ):
+                                        raise NameError(conflict_msg)
+                                    elif idx == 1 and not varConflict(
+                                            var=resp[1], evars=variables):
+                                        variables.add(resp[1])
+                            elif resp[0] in types and resp[1] != 1 and resp[2] \
+                                    == "=" and resp[3] != 1:
+                                # Debug
+                                # print(v, f"Строка {line}", "5")
+                                for idx, val in enumerate(resp):
                                     _resp_ = llchain3(_table=table,
                                                       _stack=stack,
                                                       _itern=itern, x=val,
                                                       n=_resp_[0])
                                     stack = _resp_[1]
                                     itern = _resp_[2]
+                                    if idx == 1 and varConflict(var=resp[1],
+                                                                evars=variables
+                                                                ):
+                                        raise NameError(conflict_msg)
+                                    elif idx == 1 and not varConflict(
+                                            var=resp[1], evars=variables):
+                                        variables.add(resp[1])
                         else:
                             print(f"Ожидался знак ';' либо '=' "
                                   f"в позиции {len(v) + 1} строка {line}")
                             break
                     else:
                         rightBracket = True
-                        # 6 };
-                        print(v, "6")
+                        # 6 }; Debug
+                        # print(v, "6")
                         for idx, val in enumerate(v):
                             _resp_ = llchain3(_table=table, _stack=stack,
                                               _itern=itern, x=val, n=_resp_[0])
