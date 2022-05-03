@@ -3,8 +3,6 @@ import time
 from copy import copy, deepcopy
 from typing import List, Dict, Tuple, Text, Set
 
-from sparser import varDeclaration, varConflict
-
 filename = "input.txt"
 
 
@@ -108,7 +106,7 @@ def ll_verifier() -> Dict:
     return H
 
 
-def ll_verifier2(_guides: Dict, _rules: List) -> Text:
+def ll_verifier2(_guides: Dict, _rules: Dict) -> Text:
     nonterminal_by_num = {}
     for _rule in _rules:
         for _item in _rules[_rule]:
@@ -125,7 +123,6 @@ def ll_verifier2(_guides: Dict, _rules: List) -> Text:
                         if _guides.get(q) and _guides.get(_guide):
                             for v in _guides[_guide]:
                                 if v in _guides[q]:
-                                    print(v, _guides, q)
                                     return "Грамматика не является LL(1), " \
                                            "так как направляющие множества " \
                                            f"для {_guide} пересекаются"
@@ -140,7 +137,6 @@ def findfirst(nonterminal: Text, nextrule: List, lf=None, idx=None) -> Set:
     if lf is None:
         lf = set()
     local_nt = nonterminal
-
     for i in range(0, len(nextrule)):
         local_rule = nextrule[i].lstrip(" ").rstrip(" ").split("->")
         if len(local_rule) == 2:
@@ -183,8 +179,7 @@ def findfirst2(f: Dict) -> Dict:
                                 loc_resp = findfirst(nonterminal=symbol,
                                                      nextrule=P,
                                                      lf=deepcopy(loc_first),
-                                                     idx=k
-                                                     )
+                                                     idx=k)
                                 loc_first = loc_resp
             elif symbol not in NT:
                 for j in N.keys():
@@ -199,7 +194,6 @@ def findfirst2(f: Dict) -> Dict:
 
 def findfollow(follow: Dict) -> Dict:
     loc_follow = follow
-
     for j in range(0, len(P)):
         rule = P[j].lstrip(" ").rstrip(" ").split("->")
         if len(rule) == 2:
@@ -231,7 +225,7 @@ def findfollow(follow: Dict) -> Dict:
                             elif beta != "e":
                                 Fb = []
 
-                            pre_result = loc_follow[A].union(beta).union(Fb)
+                            pre_result = loc_follow[A].union((beta,)).union(Fb)
                             loc_follow[A] = pre_result
 
                     elif i + 1 == len(_tmp):
@@ -279,7 +273,7 @@ def llchain2(_table: Dict, _stack: List, _item: Text, _index_item: int = 0,
     _terminals_ = len(_table[_i]["terminals"])
     for _idx, _val in enumerate(_table[_i]["terminals"]):
         # _index_item - always 0
-        if _item == _val or _val == "HALT":
+        if _item == _val:
             if _item[_index_item] == _val[_index_item]:
                 if _table[_i]["accept"] == "true":
                     for x in range(0, len(_item)):
@@ -308,7 +302,7 @@ def llchain2(_table: Dict, _stack: List, _item: Text, _index_item: int = 0,
             else:
                 if len(_stack) == 0 and _item == "HALT":
                     return "HALT"
-        elif _idx+1 == _terminals_:
+        elif _idx + 1 == _terminals_:
             if _table[_i]["error"] == "false":
                 return ["error", _stack, _i + 1]
     return f"Элемент цепочки {_item} не совпадает с ожидаемым(и) " \
@@ -324,9 +318,10 @@ def llchain3(x: Text, n: int, _table: Dict, _stack: List, _itern: int) -> List:
         _itern += 1
         print(f"Итерация {_itern}, Стек: {_stack}, Номер строки: {n}, "
               f"Элемент: {x}")
-        time.sleep(0.5)
+        time.sleep(0.4)
         r2 = llchain2(_table=_table, _stack=_stack, _item=x, _index_item=0,
                       _number_str_table=n)
+        time.sleep(0.1)
         if "Элемент цепочки " in r2:
             raise ValueError(r2 + f" {_table[n]['terminals']}")
         if r2 != "HALT":
@@ -361,20 +356,20 @@ def llchain3(x: Text, n: int, _table: Dict, _stack: List, _itern: int) -> List:
 
 if __name__ == '__main__':
     # Множества терминалов, не терминалов, правила
-    T = {}
-    N = {}
-    NT = set()
-    P = list()
+    T: Dict[Text, Text] = {}
+    N: Dict[int, Dict[Text, List]] = {}
+    NT: Set[Text] = set()
+    P: List[Text] = []
 
     # Множества предшествующих, последующих и направляющих символов
-    first = {}
-    first_by_nonterminal = {}
-    follow = {}
-    guide = {}
+    first: Dict[Text, Set[Text]] = {}
+    first_by_nonterminal: Dict[Text, List[Text]] = {}
+    follow: Dict[Text, Set[Text]] = {}
+    guide: Dict[Text, Set[Text]] = {}
 
     # Вспомогательные множества
-    Ml = set()
-    Mr = set()
+    Ml: Set[int] = set()
+    Mr: Set[int] = set()
 
     resp = ll_verifier()
     stop = False
@@ -406,7 +401,6 @@ if __name__ == '__main__':
                     N[i + 1] = {f"{number}": ["LEFT", rule[0].rstrip(" ")]}
                     number += 1
 
-                    # {"1":{"1": ["LEFT", "E"], "2": []}}
                 for alt in range(i + 1, len(P)):
                     if rule[0] == P[alt].lstrip(" ").rstrip(" ").split("->")[0]:
                         # rewrite fix
@@ -439,7 +433,6 @@ if __name__ == '__main__':
             for i in first.keys():
                 if len(first[i]) != len(before_first[i]):
                     trigger += True
-
             if trigger is False:
                 break
 
@@ -489,7 +482,6 @@ if __name__ == '__main__':
                                 Sa = copy(first[i])
                                 guide[i] = Sa
 
-        # bug ll_verifier2
         resp = ll_verifier2(guide, N)
         if resp != "Ok":
             print(resp)
@@ -505,41 +497,87 @@ if __name__ == '__main__':
                             biggest = int(j)
                 Mr.add(biggest)
 
-            table = dict()
+            table: Dict[int, Dict[Text, Text or Set[str]]] = dict()
             for i in T:
                 if table.get(int(i)) is None:
                     table[int(i)] = {"X": T[i], "terminals": None, "jump": None,
                                      "accept": None, "stack": None,
-                                     "return": None, "error": None
-                                     }
-
+                                     "return": None, "error": None}
             for i in N:
                 for j in N[i]:
                     if table.get(int(j)) is None:
                         table[int(j)] = {"X": N[i][j][1], "terminals": None,
                                          "jump": None, "accept": None,
                                          "stack": None, "return": None,
-                                         "error": None
-                                         }
-
+                                         "error": None}
             for i in guide:
                 table[int(i)]["terminals"] = deepcopy(guide[i])
 
             # добавил в таблицу терминалы
             for i in N:
-                for j in N[i]:
+                for _idx_, j in enumerate(N[i]):
                     if int(j) not in Ml and j not in T:
                         if table[int(j)]["terminals"] is None:
                             _tmp = set()
+                            _lst = []
+                            _delta_l = []
+                            _delta = {}
                             _A = N[i][j][1]
-                            _tmp = _tmp.union(first_by_nonterminal[_A])
+                            if _idx_ + 1 < len(N[i]):
+                                for x in N[i]:
+                                    if x >= j:
+                                        if N[i][x][0] != "LEFT":
+                                            _lst.append(x)
+                                _n = len(_lst) - 1
+                                for _x, _val in enumerate(_lst):
+                                    if _val not in T:
+                                        if "e" not in first_by_nonterminal[
+                                                N[i][_val][1]]:
+                                            _k = _x
+                                            _delta_l.append(False)
+                                            break
+                                        else:
+                                            _k = _n
+                                            _delta_l.append(True)
+                                    elif _val in T:
+                                        if "e" not in T[_val]:
+                                            _k = _x
+                                            _delta_l.append(False)
+                                            break
+                                        else:
+                                            _k = _n
+                                            _delta_l.append(True)
+
+                                _delta = {"e"}
+                                for _x in _delta_l:
+                                    if _x is False:
+                                        _delta = {}
+
+                                for _x, _val in enumerate(_lst):
+                                    if _val in T:
+                                        _tmp = _tmp.union({T[_val]}).union(
+                                            first_by_nonterminal[_A])
+                                    elif _val not in T:
+                                        _tmp = _tmp.union(
+                                            first_by_nonterminal[N[i][_val][1]]
+                                        ).union(first_by_nonterminal[_A])
+                                    if _x == _k:
+                                        break
+                            else:
+                                _tmp = _tmp.union(first_by_nonterminal[_A])
+                                if "e" in first_by_nonterminal[_A]:
+                                    _delta = {"e"}
+
                             for z in N[i]:
                                 if N[i][z][0] == "LEFT":
                                     _B = N[i][z][1]
+
                             if "e" in _tmp:
-                                _tmp = _tmp.union(follow[_B])
+                                if "e" in _delta:
+                                    _tmp = _tmp.union(follow[_B])
                                 _tmp.remove("e")
-                            table[int(j)]["terminals"] = _tmp
+                            if len(_tmp) != 0:
+                                table[int(j)]["terminals"] = _tmp
 
             for i in T:
                 if T[i] != "e":
@@ -563,7 +601,8 @@ if __name__ == '__main__':
                             if int(k) == i:
                                 if table[int(i)]["jump"] is None:
                                     table[int(i)]["jump"] = \
-                                        sorted([int(z) for z in N[j].keys()])[1]
+                                        sorted([int(z)
+                                                for z in N[j].keys()])[1]
 
             for i in N:
                 for j in N[i]:
@@ -583,7 +622,8 @@ if __name__ == '__main__':
                             if j == i:
                                 idx = sorted(N[k].keys()).index(i)
                                 # bugfix
-                                if idx < len(sorted(N[k].keys())):
+                                # bugfix 2// 19.11.21
+                                if idx < len(sorted(N[k].keys())) - 1:
                                     if table[int(i)]["jump"] is None:
                                         table[int(i)]["jump"] = int(
                                             sorted(N[k].keys())[idx + 1])
@@ -627,7 +667,7 @@ if __name__ == '__main__':
             # добавил error
             for i, v in enumerate(Ml):
                 if i + 1 <= len(Ml):
-                    if int(v)+1 in list(Ml):
+                    if int(v) + 1 in list(Ml):
                         if table[v]["error"] is None:
                             table[v]["error"] = "false"
                     else:
@@ -656,229 +696,180 @@ if __name__ == '__main__':
             # парсер структуры
             inChain = dict()
             types = ["int", "string", "float"]
-            keywords = ["struct"]
-            variables = set()
-            leftBracket = False
-            rightBracket = False
-
-            with open("struct.txt") as f:
-                inFile = f.read()
-
-            # Debug
-            # print(inFile.split("\n"))
-            strings = inFile.split("\n")
-            while True:
-                if '' in strings:
-                    strings.remove('')
-                else:
-                    break
-
+            keywords = ["struct", "long", "short", "signed", "unsigned",
+                        "double", "int", "typedef", "float"]
+            reserved_ids = {"struct", "long", "short", "signed", "unsigned",
+                            "double", "int", "typedef", "float", "[probel]",
+                            "{", "}", ",", ";", "[", "]", " "}
+            variables: Set[Text] = set()
+            nested_lvl = 1
+            nested_vars: Dict[Text, List[Tuple]] = {f"{nested_lvl}": []}
             stack = [0]
             itern = 0
-            for i, v in enumerate(strings):
-                line = 1 + i
-                # добавить конфликт имен varConflict
-                if leftBracket is False and rightBracket is False:
-                    if line == 1:
-                        if "{" in v and "}" in v:
-                            if ";" in v:
-                                if len(v.split(" ")) == 3:
-                                    if "{};" in v.split(" ")[2]:
-                                        # 1 kw name {}; Debug
-                                        # print(v.split(" "), "1")
-                                        for idx, val in enumerate(v.split(" ")):
-                                            if idx == 0:
-                                                _resp_ = llchain3(_table=table,
-                                                                  _stack=stack,
-                                                                  _itern=itern,
-                                                                  x=val, n=1)
-                                                stack = _resp_[1]
-                                                itern = _resp_[2]
-                                            else:
-                                                if val != "{};":
-                                                    _resp_ = llchain3(
-                                                        _table=table,
-                                                        _stack=stack,
-                                                        _itern=itern, x=val,
-                                                        n=_resp_[0])
-                                                    stack = _resp_[1]
-                                                    itern = _resp_[2]
-                                                else:
-                                                    for item in val:
-                                                        _resp_ = llchain3(
-                                                            _table=table,
-                                                            _stack=stack,
-                                                            _itern=itern,
-                                                            x=item,
-                                                            n=_resp_[0])
-                                            if not _resp_[1] and _resp_[0] == 0:
-                                                print("Разбор окончен, "
-                                                      f"стек пуст: {_resp_[1]}"
-                                                      )
-                                else:
-                                    if keywords[0] in v.split(" ")[0]:
-                                        if "{" in v.split(" ")[1]:
-                                            print(f"Ожидался один пробел в "
-                                                  f"позиции "
-                                                  f"{re.search('{', v).span()[0] + 1},"
-                                                  f" строка {line}"
-                                                  " перед '{' ")
-                                        elif "}" in v.split(" ")[3] or \
-                                                ";" in v.split(" ")[3]:
-                                            print("Ожидался знак '}' в позиции "
-                                                  f"{re.search('}', v).span()[0]}"
-                                                  f" строка {line}")
-                            else:
-                                # Debug
-                                # print(v.split(" "), "err")
-                                if len(v.split(" ")) == 3:
-                                    if "{}" in v.split(" ")[2]:
-                                        print(f"Ожидался знак ';' в позиции "
-                                              f"{re.search('}', v).span()[1]+1}"
-                                              f" строка {line}")
-                                elif len(v.split(" ")) == 2:
-                                    if "{}" in v.split(" ")[1]:
-                                        print(f"Ожидался пробел "
-                                              f"в позиции "
-                                              f"{re.search('{', v).span()[0]+1}"
-                                              f" строка {line}")
-                        elif "{" in v:
-                            if len(v.split(" ")) == 3:
-                                # Debug
-                                # print(v.split(" "), "3")
-                                # 3 kw name {
-                                for idx, val in enumerate(v.split(" ")):
-                                    if idx == 0:
-                                        _resp_ = llchain3(_table=table,
-                                                          _stack=stack,
-                                                          _itern=itern,
-                                                          x=val, n=1)
+            lexema = ""
+            start_string = 1
+            string_number = 1
+            term = False
+            with open("struct.txt") as f:
+                inFile = f.read()
+            strings = inFile.split("\n")
+            print(first_by_nonterminal)
+            for idxj, j in enumerate(inFile.rstrip(" ").rstrip("\n").rstrip("\r"
+                                                                            )):
+                current_terminals = table[start_string]['terminals']
+                write = False
+                nstdp_trig = False
+                nstdm_trig = False
+                if j == "\n" or j == "\r":
+                    string_number += 1
+                for i, v in enumerate(current_terminals):
+                    if re.match(r"(\w|\d|_)", j):
+                        write = True
+                    elif re.match(r"(\s|\[|\]|;|,|\{|\})", j):
+                        _reset = False
+                        for _idx_, z in enumerate(current_terminals):
+                            # keyword verifier
+                            if lexema == z:
+                                _resp_ = llchain3(str(lexema), start_string,
+                                                  table, stack, itern)
+                                stack = _resp_[1]
+                                itern = _resp_[2]
+                                start_string = _resp_[0]
+                                _reset = True
+                                variables.add(lexema)
+                                break
+                            elif ("[_a-zA-Z]" in current_terminals or
+                                  "[0-9]" in current_terminals) and \
+                                    _idx_ + 1 == len(current_terminals):
+                                if len(lexema) > 0:
+                                    if lexema in keywords:
+                                        msg = "Ключевое слово не может " \
+                                              "быть именем переменной, " \
+                                              "позиция в файле - " \
+                                              f"{inFile.find(lexema)}, " \
+                                              f"строка {string_number}"
+                                        raise ValueError(msg)
+                                    for _idx, s in enumerate(lexema):
+                                        if _idx == 0 and re.match(r"\d", s):
+                                            msg = "Переменная должна начинат" \
+                                                  "ься с буквы или нижнего " \
+                                                  f"подчеркивания - " \
+                                                  f"{lexema}, позиция " \
+                                                  f"в файле - " \
+                                                  f"{inFile.find(lexema)}," \
+                                                  f" строка {string_number}"
+                                            if "[" not in variables:
+                                                raise ValueError(msg)
+                                        # debug
+                                        # print(s, "letter")
+                                        if re.match(r"\d", s):
+                                            s = "[0-9]"
+                                        elif re.match(r"(\w|_)", s):
+                                            s = "[_a-zA-Z]"
+                                        _resp_ = llchain3(s, start_string,
+                                                          table, stack, itern)
                                         stack = _resp_[1]
                                         itern = _resp_[2]
+                                        start_string = _resp_[0]
+                                        _reset = True
+                                    variables.add(lexema)
+                                    if nested_vars.get(str(nested_lvl)):
+                                        if "struct" in variables:
+                                            for x in nested_vars[
+                                                    str(nested_lvl)]:
+                                                if x[1] == "struct":
+                                                    if x[0] == lexema:
+                                                        _posinfile = inFile. \
+                                                            find(lexema)
+                                                        msg = f"Повторное " \
+                                                              f"использование "\
+                                                              f"имени - " \
+                                                              f"{x[0]}, " \
+                                                              f"позиция в " \
+                                                              f"файле - " \
+                                                              f"{_posinfile}," \
+                                                              f" строка - " \
+                                                              f"{string_number}"
+                                                        # debug
+                                                        raise NameError(msg, nested_vars)
+                                            nested_vars[str(nested_lvl)].append(
+                                                (lexema, "struct"))
+                                        elif "struct" not in variables:
+                                            for x in nested_vars[
+                                                    str(nested_lvl)]:
+                                                if x[1] == "var":
+                                                    if x[0] == lexema:
+                                                        _posinfile = inFile.\
+                                                            find(lexema)
+                                                        msg = f"Повторное " \
+                                                              f"использование "\
+                                                              f"имени - " \
+                                                              f"{x[0]}, " \
+                                                              f"позиция в " \
+                                                              f"файле - " \
+                                                              f"{_posinfile}," \
+                                                              f" строка - " \
+                                                              f"{string_number}"
+                                                        #debug
+                                                        raise NameError(msg, nested_vars)
+                                            nested_vars[str(nested_lvl)].append(
+                                                (lexema, "var"))
                                     else:
-                                        _resp_ = llchain3(_table=table,
-                                                          _stack=stack,
-                                                          _itern=itern, x=val,
-                                                          n=_resp_[0])
-                                        stack = _resp_[1]
-                                        itern = _resp_[2]
-                                    if not _resp_[1] and _resp_[0] == 0:
-                                        print("Разбор окончен, "
-                                              f"стек пуст: {_resp_[1]}"
-                                              )
-                                leftBracket = True
-                            elif len(v.split(" ")) >= 4:
-                                if v.split(" ")[3] == '':
-                                    print(f"Обнаружен лишний пробел в позиции"
-                                          f" {re.search('{', v).span()[1]+1} "
-                                          f"строка {line}")
-                            else:
-                                print(f"Ожидался пробел в позиции "
-                                      f"{re.search('{', v).span()[0] +1} "
-                                      f"строка {line}")
-                        elif ";" in v:
-                            # Debug
-                            # print(v, "2")
-                            # 2 kw name;
-                            if len(v.split(";")) == 2:
-                                _idx = 0
-                                for idx, val in enumerate(v.split(";")):
-                                    for k in val.lstrip(" ").rstrip(" ").split(
-                                            " "):
-                                        if _idx == 0:
-                                            _resp_ = llchain3(_table=table,
-                                                              _stack=stack,
-                                                              _itern=itern,
-                                                              x=k, n=1
-                                                              )
-                                            stack = _resp_[1]
-                                            itern = _resp_[2]
-                                            _idx += 1
+                                        if "struct" in variables:
+                                            _diff = variables.difference(
+                                                reserved_ids)
+                                            if len(_diff) == 1:
+                                                nested_vars[
+                                                    str(nested_lvl)
+                                                ] = [(next(iter(_diff)),
+                                                       "struct")]
                                         else:
-                                            if _idx < 2:
-                                                _resp_ = llchain3(_table=table,
-                                                                  _stack=stack,
-                                                                  _itern=itern,
-                                                              x=k, n=_resp_[0])
-                                                stack = _resp_[1]
-                                                itern = _resp_[2]
-                                            else:
-                                                _resp_ = llchain3(_table=table,
-                                                                  _stack=stack,
-                                                                  _itern=itern,
-                                                                  x=";",
-                                                                  n=_resp_[0])
-                                                stack = _resp_[1]
-                                                itern = _resp_[2]
-                                            _idx += 1
-                                            if not _resp_[1] and _resp_[0] == 0:
-                                                print("Разбор окончен, "
-                                                      f"стек пуст: {_resp_[1]}"
-                                                      )
-                        else:
-                            print("Ожидался знак '{' "
-                                  f"либо ';' в позиции {len(v.rstrip(' ')) + 1}"
-                                  f"")
-                elif leftBracket is True and rightBracket is False:
-                    if "}" not in v:
-                        conflict_msg = f"Конфликт переменной в строке {line}," \
-                                       f" переменная с таким именем была " \
-                                       f"объявлена ранее!"
-                        resp = varDeclaration(v)
-                        if ";" == v[len(v) - 1]:
-                            if resp[0] in types and resp[1] != 1 and resp[2] ==\
-                                    1 and resp[3] == 1:
-                                # 4 type name ; Debug
-                                # print(v, f"Строка {line}", "4")
-                                for idx, val in enumerate(resp):
-                                    if idx not in [2, 3]:
-                                        _resp_ = llchain3(_table=table,
-                                                          _stack=stack,
-                                                          _itern=itern, x=val,
-                                                          n=_resp_[0])
-                                        stack = _resp_[1]
-                                        itern = _resp_[2]
-                                    if idx == 1 and varConflict(var=resp[1],
-                                                                evars=variables
-                                                                ):
-                                        raise NameError(conflict_msg)
-                                    elif idx == 1 and not varConflict(
-                                            var=resp[1], evars=variables):
-                                        variables.add(resp[1])
-                            elif resp[0] in types and resp[1] != 1 and resp[2] \
-                                    == "=" and resp[3] != 1:
-                                # Debug
-                                # print(v, f"Строка {line}", "5")
-                                for idx, val in enumerate(resp):
-                                    _resp_ = llchain3(_table=table,
-                                                      _stack=stack,
-                                                      _itern=itern, x=val,
-                                                      n=_resp_[0])
-                                    stack = _resp_[1]
-                                    itern = _resp_[2]
-                                    if idx == 1 and varConflict(var=resp[1],
-                                                                evars=variables
-                                                                ):
-                                        raise NameError(conflict_msg)
-                                    elif idx == 1 and not varConflict(
-                                            var=resp[1], evars=variables):
-                                        variables.add(resp[1])
-                        else:
-                            print(f"Ожидался знак ';' либо '=' "
-                                  f"в позиции {len(v) + 1} строка {line}")
-                            break
+                                            _diff = variables.difference(
+                                                reserved_ids)
+                                            if len(_diff) == 1:
+                                                nested_vars[
+                                                    str(nested_lvl)
+                                                ] = [(next(iter(_diff)), "var")]
+                            else:
+                                pass
+                        if len(lexema) > 0 and _reset is False:
+                            msg = f"Ошибка лексема {lexema} не допустима " \
+                                  f"в текущей строке {current_terminals}, " \
+                                  f"позиция в файле - {inFile.find(lexema)}, " \
+                                  f"строка - {string_number}"
+                            raise ValueError(msg)
+
+                        if j == " " or j == "\n" or j == "\r":
+                            j = "[probel]"
+
+                        resp = llchain3(j, start_string, table,
+                                        stack, itern)
+                        stack = resp[1]
+                        itern = resp[2]
+                        start_string = resp[0]
+                        variables.add(j)
+                        lexema = ""
+                        if j == "{":
+                            _diff = variables.difference(reserved_ids)
+                            if len(_diff) == 1:
+                                nstdp_trig = True
+                        if j == "}":
+                            nstdm_trig = True
+                        break
                     else:
-                        rightBracket = True
-                        # 6 }; Debug
-                        # print(v, "6")
-                        for idx, val in enumerate(v):
-                            _resp_ = llchain3(_table=table, _stack=stack,
-                                              _itern=itern, x=val, n=_resp_[0])
-                            stack = _resp_[1]
-                            itern = _resp_[2]
-                        if not stack and _resp_[0] == 0:
-                            print(f"Разбор окончен, стек пуст: {_resp_[1]}")
-                elif leftBracket is True and rightBracket is True:
-                    print("THE END")
-                else:
-                    print(f"Неожиданный сценарий - {i},{v}")
+                        print("Unexpected scenario")
+                if ";" in variables and j == ";":
+                    print(variables, nested_vars)
+                    variables.clear()
+                elif nstdp_trig:
+                    nested_lvl += 1
+                    variables.clear()
+                elif nstdm_trig:
+                    nested_lvl -= 1
+                    variables.clear()
+                if write:
+                    lexema += j
+                if len(stack) == 1 and stack[0] == 0 and idxj + 1 == len(
+                        inFile):
+                    print("STOP", stack)
+                    break

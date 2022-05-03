@@ -1,16 +1,57 @@
-A -> X Y Z
-X -> struct
-Y -> person
-Z -> L D R E
-L -> {
-D -> T N P D
-D -> e
-T -> int
-T -> string
-N -> age
-N -> fname
-P -> = G
-P -> E
-E -> ;
-G -> 100 E
-R -> }
+A -> A1
+A -> P P2 A1
+A1 -> T I C A1
+A1 -> e
+T -> struct T2 { P1 A1 } V
+T -> float P
+T -> double P P1 M4
+T -> char P P1 S1
+T -> S P M2
+T -> int P P1 T1
+T -> short P P1 M5
+T -> long P P1 M3
+T2 -> P1 I1 P1
+T1 -> S P P1 M1
+T1 -> M1 S1
+M -> short
+M -> long
+M2 -> int P P1 M1
+M2 -> M P P1 int P P1
+M2 -> char P P1
+M2 -> e
+M3 -> int P P1 S1
+M3 -> S int P P1
+M3 -> double P P1
+M3 -> e
+M5 -> int P P1 S1
+M5 -> S int P P1
+M5 -> e
+M1 -> M P P1
+M1 -> e
+M4 -> long P P1
+M4 -> e
+S -> signed
+S -> unsigned
+S1 -> S P P1
+S1 -> e
+I -> [_a-zA-Z] I1
+I -> e
+C -> P C
+C -> , P1 I
+C -> ; P1
+C -> [ R1
+R -> [ N ] R
+R1 -> N ] C
+N -> [0-9] N
+N -> e
+I1 -> [_a-zA-Z] I1
+I1 -> [0-9] I1
+I1 -> e
+P -> [probel]
+P1 -> P P1
+P1 -> e
+P2 -> P P2
+P2 -> e
+V -> ; P1
+V -> P V
+V -> e

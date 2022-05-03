@@ -153,4 +153,6 @@ pyvenv.cfg
 pip-selfcheck.json
 
 src
+other
+.vscode
 

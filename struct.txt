@@ -1,4 +1,11 @@
-struct person {
-     string fname;
-     int age = 100;
+float a256;
+int a256;
+struct pers{
+   int a;
+   int a;
+   struct b {
+      double a;
+   } b[2];
+   double ab;
+   signed long int m23;
 };
